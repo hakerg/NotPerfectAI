@@ -44,6 +44,11 @@ function RoadTransportPlan::constructor(source, target, cargo, engine, roadType)
 	ChangeEngine(engine);
 }
 
+function RoadTransportPlan::GetStationRadius(isSource)
+{
+	return AIStation.GetCoverageRadius(stationType);
+}
+
 function RoadTransportPlan::GetAvailableVehicleCount()
 {
 	return AIGameSettings.GetValue("vehicle.max_roadveh") - GetVehicleCount(AIVehicle.VT_ROAD);

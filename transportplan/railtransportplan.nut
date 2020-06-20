@@ -152,6 +152,11 @@ function RailTransportPlan::constructor(source, target, cargo, engine, wagon, ra
 	ChangeEngineAndWagon(engine, wagon);
 }
 
+function RailTransportPlan::GetStationRadius(isSource)
+{
+	return AIStation.GetCoverageRadius(AIStation.STATION_TRAIN);
+}
+
 function RailTransportPlan::GetAvailableVehicleCount()
 {
 	return AIGameSettings.GetValue("vehicle.max_trains") - GetVehicleCount(AIVehicle.VT_RAIL);

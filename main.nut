@@ -13,14 +13,6 @@ class NotPerfectAI extends AIController
 	planIndex = 1;
 	maxStationCount = 0;
 	planList = null;
-	// TODO: saving served / failed plans
-	// FIXME: rail end
-	// TODO: list of industries and towns (production avg 3 months)
-	// TODO: 1 plane per 10-15 days per railway / helipad
-	// TODO: disabled adjacent stations
-	// FIXME: trams cannot turn around in target stations
-	// TODO: pathfinder cost by plan score
-	// TODO: multiple cargo connections
 }
 
 function NotPerfectAI::FindVehiclePlanIndex(vehicleID)

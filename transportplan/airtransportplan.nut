@@ -18,10 +18,19 @@ function AirTransportPlan::GetAirportType(industry, list)
 {
 	foreach (type in list)
 	{
+		if (industry.type == AITown && GetCoveredHouses(AIAirport.GetAirportCoverageRadius(type)) < AITown.GetHouseCount(industry.id))
+		{
+			continue;
+		}
 		if (AIAirport.IsValidAirportType(type))
 		{
 			return type;
 		}
+	}
+	local type = list[list.len() - 1];
+	if (AIAirport.IsValidAirportType(type))
+	{
+		return type;
 	}
 	return null;
 }
@@ -99,6 +108,18 @@ function AirTransportPlan::constructor(source, target, cargo, engine)
 	}
 	CalculateSupply();
 	ChangeEngine(engine);
+}
+
+function AirTransportPlan::GetStationRadius(isSource)
+{
+	if (isSource)
+	{
+		return AIAirport.GetAirportCoverageRadius(sourceAirportType);
+	}
+	else
+	{
+		return AIAirport.GetAirportCoverageRadius(targetAirportType);
+	}
 }
 
 function AirTransportPlan::GetAvailableVehicleCount()

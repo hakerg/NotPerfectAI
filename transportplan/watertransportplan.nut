@@ -41,6 +41,11 @@ function WaterTransportPlan::constructor(source, target, cargo, engine)
 	ChangeEngine(engine);
 }
 
+function WaterTransportPlan::GetStationRadius(isSource)
+{
+	return AIStation.GetCoverageRadius(AIStation.STATION_DOCK);
+}
+
 function WaterTransportPlan::GetAvailableVehicleCount()
 {
 	return AIGameSettings.GetValue("vehicle.max_ships") - GetVehicleCount(AIVehicle.VT_WATER);

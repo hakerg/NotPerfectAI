@@ -12,9 +12,7 @@ class TransportPlan extends Investment
 	cargo = null;
 	distance = null;
 	routeLength = null;
-	monthlyProduction = null;
 	monthlySupply = null;
-	targetMonthlyProduction = null;
 	targetMonthlySupply = null;
 	
 	engine = null;
@@ -39,21 +37,48 @@ class TransportPlan extends Investment
 	availableEngines = null;
 }
 
+function TransportPlan::GetCoveredHouses(stationRadius)
+{
+	if (AIGameSettings.GetValue("station.distant_join_stations"))
+	{
+		stationRadius += AIGameSettings.GetValue("station.station_spread") - 1;
+	}
+	return stationRadius * stationRadius * 0.6;
+}
+
+function TransportPlan::GetNodeProduction(industry, isSource)
+{
+	if (industry.type == AIIndustry)
+	{
+		return industry.GetLastMonthProduction(cargo);
+	}
+	else
+	{
+		local houses = AITown.GetHouseCount(industry.id);
+		local coveredHouses = GetCoveredHouses(GetStationRadius(isSource));
+		if (coveredHouses >= houses)
+		{
+			return industry.GetLastMonthProduction(cargo);
+		}
+		else
+		{
+			return industry.GetLastMonthProduction(cargo) * coveredHouses / houses;
+		}
+	}
+}
+
 function TransportPlan::CalculateSupply()
 {
-	monthlyProduction = source.GetLastMonthProduction(cargo);
-	monthlySupply = monthlyProduction * 0.8;
-	targetMonthlyProduction = 0;
-	targetMonthlySupply = 0;
+	monthlySupply = GetNodeProduction(source, true) * 0.8;
 	if (source.IsCargoAccepted(cargo) == AIIndustry.CAS_ACCEPTED && PlanList.IsValidSource(target, cargo))
 	{
-		targetMonthlyProduction = target.GetLastMonthProduction(cargo);
 		bidirectional = true;
-		targetMonthlySupply = targetMonthlyProduction * 0.4;
+		targetMonthlySupply = GetNodeProduction(target, false) * 0.4;
 	}
 	else
 	{
 		bidirectional = false;
+		targetMonthlySupply = 0;
 	}
 }
 
