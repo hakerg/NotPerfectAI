@@ -433,7 +433,6 @@ function FindRoadPath(source, target, iterations, initDirection)
 			local bridgeEnd = GoToTile(nextTile, neighbor);
 			if (!BuildWrapper(AIRoad.BuildRoad, [nextTile, bridgeEnd], true))
 			{
-				local noBridge = !AIBridge.IsBridgeTile(nextTile);
 				for (local length = 2; length <= maxBridgeLength; length++)
 				{
 					bridgeEnd = GoToTile(bridgeEnd, neighbor);
@@ -450,10 +449,6 @@ function FindRoadPath(source, target, iterations, initDirection)
 							openNodes.ReplaceIfBetter(PathNode.CreateNode(node, bridgeEnd, initRoadCost + bridgeCost, neighborID, true, GetRemainingRoadCost(bridgeEnd, target)));
 							break;
 						}
-					}
-					else if (noBridge && AIError.GetLastError() == AIError.ERR_AREA_NOT_CLEAR)
-					{
-						break;
 					}
 				}
 			}
@@ -637,7 +632,6 @@ function FindRailPath(source, sourceOrientation, targets, targetOrientation, ite
 				local bridgeEnd = GoToTile(nextPiece.tile, neighbor);
 				if (!BuildWrapper(AIRail.BuildRailTrack, [bridgeEnd, nextPiece.orientation], true) || (AIRail.GetRailTracks(bridgeEnd) != 0 && (AIRail.GetRailTracks(bridgeEnd) & nextPiece.orientation) == 0))
 				{
-					local noBridge = !AIBridge.IsBridgeTile(nextPiece.tile);
 					for (local length = 2; length <= maxBridgeLength; length++)
 					{
 						bridgeEnd = GoToTile(bridgeEnd, neighbor);
@@ -654,10 +648,6 @@ function FindRailPath(source, sourceOrientation, targets, targetOrientation, ite
 								openNodes.ReplaceIfBetter(PathNode.CreateNode(node, RailPiece(bridgeEnd, nextPiece.orientation).GetIndex(), initRailCost + bridgeCost, null, true, GetRemainingRailCost(bridgeEnd, targetPieces)));
 								break;
 							}
-						}
-						else if (noBridge && AIError.GetLastError() == AIError.ERR_AREA_NOT_CLEAR)
-						{
-							break;
 						}
 					}
 				}
