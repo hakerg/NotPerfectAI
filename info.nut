@@ -12,6 +12,16 @@ class NotPerfectAI extends AIInfo {
 	{
 		AddSetting(
 		{
+			name = "slowMode",
+			description = "SLOW MODE - build max one connection per year",
+			easy_value = 0,
+			medium_value = 0,
+			hard_value = 0,
+			custom_value = 0,
+			flags = AICONFIG_BOOLEAN | AICONFIG_INGAME
+		});
+		AddSetting(
+		{
 			name = "buildTownConnections",
 			description = "Build town connections",
 			easy_value = 1,
@@ -78,6 +88,16 @@ class NotPerfectAI extends AIInfo {
 			medium_value = 1,
 			hard_value = 1,
 			custom_value = 1,
+			flags = AICONFIG_BOOLEAN | AICONFIG_INGAME
+		});
+		AddSetting(
+		{
+			name = "pathfinderSigns",
+			description = "(Debug) Build signs when pathfinding",
+			easy_value = 0,
+			medium_value = 0,
+			hard_value = 0,
+			custom_value = 0,
 			flags = AICONFIG_BOOLEAN | AICONFIG_INGAME
 		});
 	}

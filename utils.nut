@@ -46,6 +46,26 @@ function PrintError(string)
 	AILog.Error(AIDate.GetYear(date) + "." + AIDate.GetMonth(date) + "." + AIDate.GetDayOfMonth(date) + " " + string);
 }
 
+function PrintList(list)
+{
+	PrintInfo(list.Count() + " items:");
+	PrintInfo("{");
+	foreach (item, value in list)
+	{
+		PrintInfo("    [" + item + "]: " + value);
+	}
+	PrintInfo("}");
+}
+
+function SleepDays(days)
+{
+	local timeout = AIDate.GetCurrentDate() + days;
+	while (AIDate.GetCurrentDate() < timeout)
+	{
+		AIController.Sleep(1);
+	}
+}
+
 function DrawProgressBar(progress, max)
 {
 	progress *= 4;
@@ -317,7 +337,7 @@ function BuildWrapper(buildFunction, params, waitForMoney, moneyInfo = true)
 			{
 				if (AICompany.GetLoanAmount() >= AICompany.GetMaxLoanAmount())
 				{
-					if (waitForMoney && AIVehicleList().Count() > 0)
+					if (waitForMoney && !AIVehicleList().IsEmpty())
 					{
 						if (moneyInfo)
 						{
@@ -354,7 +374,7 @@ function VehicleBuildWrapper(buildFunction, params, waitForMoney, moneyInfo = tr
 			{
 				if (AICompany.GetLoanAmount() >= AICompany.GetMaxLoanAmount())
 				{
-					if (waitForMoney && AIVehicleList().Count() > 0)
+					if (waitForMoney && !AIVehicleList().IsEmpty())
 					{
 						if (moneyInfo)
 						{

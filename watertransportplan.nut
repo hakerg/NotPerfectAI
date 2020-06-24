@@ -1,5 +1,5 @@
 require("transportplan.nut");
-require("../pathfinder.nut");
+require("pathfinder.nut");
 
 class WaterTransportPlan extends TransportPlan
 {
@@ -241,9 +241,7 @@ function WaterTransportPlan::Realize()
 	BuyVehicles();
 	if (runningVehicles.len() > 0)
 	{
-		RenameStations();
-		ExtendRangeForTowns();
-		aiInstance.planIndex++;
+		FinalizeBuild();
 		return true;
 	}
 	else

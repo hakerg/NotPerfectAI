@@ -1,7 +1,7 @@
-require("transportplan/roadtransportplan.nut");
-require("transportplan/airtransportplan.nut");
-require("transportplan/watertransportplan.nut");
-require("transportplan/railtransportplan.nut");
+require("roadtransportplan.nut");
+require("airtransportplan.nut");
+require("watertransportplan.nut");
+require("railtransportplan.nut");
 
 class PlanList
 {
@@ -13,15 +13,15 @@ class PlanList
 
 function PlanList::AlreadyServed(source, cargo)
 {
-	if (!(source.id in aiInstance.servedPlansByID))
+	if (source.id in aiInstance.servedPlansByID)
 	{
-		return false;
-	}
-	foreach (plan in aiInstance.servedPlansByID[source.id])
-	{
-		if ((plan.source.IsEqualTo(source) || (plan.bidirectional && plan.target.IsEqualTo(source))) && plan.cargo == cargo)
+		local date = AIDate.GetCurrentDate();
+		foreach (plan in aiInstance.servedPlansByID[source.id])
 		{
-			return true;
+			if (plan.cargo == cargo && date < plan.productionValidTime)
+			{
+				return true;
+			}
 		}
 	}
 	return false;
@@ -37,15 +37,11 @@ function PlanList::IsFailed(source, target, vehicleType)
 	{
 		if (plan.vehicleType == vehicleType)
 		{
-			if (plan.source.IsEqualTo(source) && plan.sourceStationLocation == null)
+			if (plan.sourceStationLocation == null)
 			{
 				return true;
 			}
-			if (plan.target.IsEqualTo(target) && plan.targetStationLocation == null)
-			{
-				return true;
-			}
-			if (plan.source.IsEqualTo(source) && plan.target.IsEqualTo(target))
+			if (plan.target.IsEqualTo(target))
 			{
 				return true;
 			}
@@ -64,15 +60,11 @@ function PlanList::IsFailedAir(source, target, planeType)
 	{
 		if (plan.vehicleType == AIVehicle.VT_AIR && plan.planeType == planeType)
 		{
-			if (plan.source.IsEqualTo(source) && plan.sourceStationLocation == null)
+			if (plan.sourceStationLocation == null)
 			{
 				return true;
 			}
-			if (plan.target.IsEqualTo(target) && plan.targetStationLocation == null)
-			{
-				return true;
-			}
-			if (plan.source.IsEqualTo(source) && plan.target.IsEqualTo(target))
+			if (plan.target.IsEqualTo(target))
 			{
 				return true;
 			}
@@ -96,7 +88,7 @@ function PlanList::IsFailedPlan(plan)
 function PlanList::IsValidSource(source, cargo)
 {
 	return source.GetLastMonthProduction(cargo) > 0
-		&& source.GetLastMonthTransportedPercentage(cargo) <= 25
+		&& source.GetLastMonthTransportedPercentage(cargo) <= 30
 		&& !PlanList.AlreadyServed(source, cargo)
 		&& source.GetAmountOfStationsAround() <= aiInstance.maxStationCount;
 }
@@ -301,7 +293,7 @@ function PlanList::constructor(iterations)
 
 function PlanList::PopBest()
 {
-	if (planList.Count() == 0)
+	if (planList.IsEmpty())
 	{
 		return null;
 	}
@@ -311,7 +303,7 @@ function PlanList::PopBest()
 		PrintInfo("No money");
 		return null;
 	}
-	local hasIncome = (AIVehicleList().Count() > 0);
+	local hasIncome = (!AIVehicleList().IsEmpty());
 	local item = planList.Begin();
 	local minScore = null;
 	PrintInfo("Picking best affordable plan");

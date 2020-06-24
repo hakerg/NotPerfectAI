@@ -241,6 +241,13 @@ function NotPerfectAI::Start()
 			if (plan.Realize())
 			{
 				PrintInfo("Realization successful");
+				if (AIController.GetSetting("slowMode"))
+				{
+					PrintInfo("");
+					PrintInfo("Waiting 365 days");
+					PrintInfo("");
+					SleepDays(365);
+				}
 			}
 			else
 			{
@@ -256,8 +263,8 @@ function NotPerfectAI::Start()
 		else
 		{
 			planList = null;
-			PrintInfo("No plan found!");
-			if (maxStationCount == 15)
+			PrintInfo("No suitable plan!");
+			if (maxStationCount == 255)
 			{
 				PrintInfo("Starting checking failed connections");
 				failedPlansByID.clear();

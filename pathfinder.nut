@@ -25,6 +25,35 @@ class RailTrackData
 		[AIRail.RAILTRACK_NW_SW] = 4,
 		[AIRail.RAILTRACK_NE_SE] = 5
 	};
+	// normal
+	/*trackArray =
+	[
+		[
+			[[-1, 0], [AIRail.RAILTRACK_NE_SW, AIRail.RAILTRACK_SW_SE, AIRail.RAILTRACK_NW_SW]],
+			[[1, 0], [AIRail.RAILTRACK_NE_SW, AIRail.RAILTRACK_NW_NE, AIRail.RAILTRACK_NE_SE]]
+		],
+		[
+			[[0, -1], [AIRail.RAILTRACK_NW_SE, AIRail.RAILTRACK_SW_SE, AIRail.RAILTRACK_NE_SE]],
+			[[0, 1], [AIRail.RAILTRACK_NW_SE, AIRail.RAILTRACK_NW_NE, AIRail.RAILTRACK_NW_SW]]
+		],
+		[
+			[[0, -1], [AIRail.RAILTRACK_SW_SE, AIRail.RAILTRACK_NW_SE]],
+			[[-1, 0], [AIRail.RAILTRACK_SW_SE, AIRail.RAILTRACK_NE_SW]]
+		],
+		[
+			[[1, 0], [AIRail.RAILTRACK_NW_NE, AIRail.RAILTRACK_NE_SW]],
+			[[0, 1], [AIRail.RAILTRACK_NW_NE, AIRail.RAILTRACK_NW_SE]]
+		],
+		[
+			[[0, -1], [AIRail.RAILTRACK_NE_SE, AIRail.RAILTRACK_NW_SE]],
+			[[1, 0], [AIRail.RAILTRACK_NE_SE, AIRail.RAILTRACK_NE_SW]]
+		],
+		[
+			[[-1, 0], [AIRail.RAILTRACK_NW_SW, AIRail.RAILTRACK_NE_SW]],
+			[[0, 1], [AIRail.RAILTRACK_NW_SW, AIRail.RAILTRACK_NW_SE]]
+		]
+	];*/
+	// reversed
 	trackArray =
 	[
 		[
@@ -190,76 +219,46 @@ function PathNode::ReconstructRailPath()
 
 class PathOpenList
 {
-	tableCostNode = null;
-	arrayTileCostIndex = null;
-	minAllocatedCost = null;
-	maxAllocatedCost = null;
-	bestCost = null;
+	listIndexCost = null;
+	tableIndexNode = null;
+	orderingCost = null;
 }
 
-function PathOpenList::constructor(indexCount, root)
+function PathOpenList::constructor()
 {
-	this.arrayTileCostIndex = LargeArray(indexCount);
-	this.minAllocatedCost = root.totalCost;
-	this.maxAllocatedCost = root.totalCost;
-	this.bestCost = root.totalCost;
-	this.tableCostNode = {};
-	this.tableCostNode[root.totalCost] <- [root];
-	this.arrayTileCostIndex.Set(root.index, [root.totalCost, 0]);
+	listIndexCost = AIList();
+	tableIndexNode = {};
+	orderingCost = 10000;
+	listIndexCost.Sort(AIList.SORT_BY_VALUE, true);
 }
 
 function PathOpenList::PopBest()
 {
-	while (tableCostNode[bestCost].len() == 0)
+	if (listIndexCost.IsEmpty())
 	{
-		bestCost++;
-		if (bestCost > maxAllocatedCost)
-		{
-			return null;
-		}
+		return null;
 	}
-	local node = tableCostNode[bestCost].pop();
-	arrayTileCostIndex.Set(node.index, null);
-	return node;
-}
-
-function PathOpenList::RemoveNode(costIndex)
-{
-	local node = tableCostNode[costIndex[0]][costIndex[1]];
-	arrayTileCostIndex.Set(node.index, null);
-	for (local i = costIndex[1] + 1; i < tableCostNode[costIndex[0]].len(); i++)
+	else
 	{
-		local nodeAfter = tableCostNode[costIndex[0]][i];
-		arrayTileCostIndex.Get(nodeAfter.index)[1]--;
+		local index = listIndexCost.Begin();
+		listIndexCost.RemoveItem(index);
+		return delete tableIndexNode[index];
 	}
-	tableCostNode[costIndex[0]].remove(costIndex[1]);
 }
 
 function PathOpenList::ReplaceIfBetter(node)
 {
-	local costIndex = arrayTileCostIndex.Get(node.index);
-	if (costIndex == null || (costIndex[0] > node.totalCost))
+	if (!listIndexCost.HasItem(node.index) || listIndexCost.GetValue(node.index) / 10000 > node.totalCost)
 	{
-		if (costIndex != null)
+		listIndexCost.RemoveItem(node.index);
+		orderingCost--;
+		local itemCost = node.totalCost * 10000 + orderingCost;
+		if (itemCost < 0)
 		{
-			RemoveNode(costIndex);
+			itemCost = 0;
 		}
-		if (node.totalCost < bestCost)
-		{
-			bestCost = node.totalCost;
-		}
-		while (minAllocatedCost > node.totalCost)
-		{
-			minAllocatedCost--;
-			tableCostNode[minAllocatedCost] <- [];
-		}
-		while (maxAllocatedCost < node.totalCost)
-		{
-			maxAllocatedCost++;
-			tableCostNode[maxAllocatedCost] <- [];
-		}
-		arrayTileCostIndex.Set(node.index, [node.totalCost, tableCostNode[node.totalCost].len()]);
-		tableCostNode[node.totalCost].append(node);
+		listIndexCost.AddItem(node.index, itemCost);
+		tableIndexNode[node.index] <- node;
 	}
 }
 
@@ -267,23 +266,23 @@ function PathNode::GetScopeCost(slope)
 {
 	if ((slope == AITile.SLOPE_NWS) || (slope == AITile.SLOPE_WSE) || (slope == AITile.SLOPE_SEN) || (slope == AITile.SLOPE_ENW))
 	{
-		return 1;
+		return 2;
 	}
 	else if ((slope == AITile.SLOPE_NS) || (slope == AITile.SLOPE_EW))
 	{
-		return 1;
+		return 4;
 	}
 	else if ((slope == AITile.SLOPE_NW) || (slope == AITile.SLOPE_SW) || (slope == AITile.SLOPE_SE) || (slope == AITile.SLOPE_NE))
 	{
-		return 9;
+		return 21;
 	}
 	else if ((slope == AITile.SLOPE_W) || (slope == AITile.SLOPE_S) || (slope == AITile.SLOPE_E) || (slope == AITile.SLOPE_N))
 	{
-		return 10;
+		return 22;
 	}
 	else if (AITile.IsSteepSlope(slope))
 	{
-		return 10;
+		return 24;
 	}
 	return 0;
 }
@@ -294,7 +293,7 @@ function PathNode::GetExistingScopeCost(slope)
 		|| (slope == AITile.SLOPE_W) || (slope == AITile.SLOPE_S) || (slope == AITile.SLOPE_E) || (slope == AITile.SLOPE_N)
 		|| AITile.IsSteepSlope(slope))
 	{
-		return 8;
+		return 20;
 	}
 	return 0;
 }
@@ -318,19 +317,19 @@ function PathNode::GetTerrainCost(tile)
 	local newCost = null;
 	if (AITile.IsCoastTile(tile))
 	{
-		newCost = 16;
+		newCost = 30;
 	}
 	else if (AITile.IsFarmTile(tile))
 	{
-		newCost = 8;
+		newCost = 20;
 	}
 	else if (AITile.IsRockTile(tile) || AITile.IsRoughTile(tile))
 	{
-		newCost = 5;
+		newCost = 12;
 	}
 	else
 	{
-		newCost = 4;
+		newCost = 10;
 	}
 	return newCost + PathNode.GetScopeCost(AITile.GetSlope(tile));
 }
@@ -340,7 +339,6 @@ function PathNode::GetNextTileCost(tile, alreadyBuilt, sourceTile, targetTile, c
 	local cost = null;
 	if (alreadyBuilt)
 	{
-		//cost = PathNode.GetExistingScopeCost(AITile.GetSlope(tile));
 		cost = 1;
 	}
 	else
@@ -352,24 +350,29 @@ function PathNode::GetNextTileCost(tile, alreadyBuilt, sourceTile, targetTile, c
 		local stationID = AIStation.GetStationID(tile);
 		if (stationID != AIStation.GetStationID(sourceTile) && stationID != AIStation.GetStationID(targetTile))
 		{
-			cost += 32;
+			cost += 50;
 		}
 	}
 	return cost;
 }
 
-function GetRemainingRailCost(tile, targets)
+function GetRemainingRoadCost(tile, target)
 {
-	local cost = (CalculateDiagonalDistance(tile, targets[0]) * 8).tointeger();
-	for (local i = 1; i < targets.len(); i++)
+	return AIMap.DistanceManhattan(tile, target) * 15;
+}
+
+function GetRemainingRailCost(tile, targetPieces)
+{
+	local distance = CalculateDiagonalDistance(tile, targetPieces[0].tile);
+	for (local i = 1; i < targetPieces.len(); i++)
 	{
-		local newCost = (CalculateDiagonalDistance(tile, targets[i]) * 8).tointeger();
-		if (newCost < cost)
+		local newDistance = CalculateDiagonalDistance(tile, targetPieces[i].tile);
+		if (newDistance < distance)
 		{
-			cost = newCost;
+			distance = newDistance;
 		}
 	}
-	return cost;
+	return (distance * 20).tointeger();
 }
 
 function FindRoadPath(source, target, iterations, initDirection)
@@ -384,7 +387,8 @@ function FindRoadPath(source, target, iterations, initDirection)
 	}
 	local mapSize = AIMap.GetMapSizeX() * AIMap.GetMapSizeY();
 	local closedNodes = LargeArray(mapSize);
-	local openNodes = PathOpenList(mapSize, PathNode.CreateRoot(source, GetDirectionID(initDirection), totalDistance * 6));
+	local openNodes = PathOpenList();
+	openNodes.ReplaceIfBetter(PathNode.CreateRoot(source, GetDirectionID(initDirection), GetRemainingRoadCost(source, target)));
 	local maxBridgeLength = AIGameSettings.GetValue("construction.max_bridge_length");
 	local bridgeTable = {};
 	for (local length = 2; length <= maxBridgeLength; length++)
@@ -406,6 +410,11 @@ function FindRoadPath(source, target, iterations, initDirection)
 			return node.ReconstructPath();
 		}
 		closedNodes.Set(node.index, node);
+		if (AIController.GetSetting("pathfinderSigns"))
+		{
+			BuildSign(node.index, "pop");
+			ClearSigns();
+		}
 		local directionsToCheck = neighbors;
 		if (node.bridge || !PathNode.CanHaveCurve(AITile.GetSlope(node.index)))
 		{
@@ -420,7 +429,7 @@ function FindRoadPath(source, target, iterations, initDirection)
 			{
 				continue;
 			}
-			local initRoadCost = PathNode.GetNextTileCost(nextTile, (AIError.GetLastError() == AIError.ERR_ALREADY_BUILT), source, target, neighborID != node.directionID ? 4 : 0);
+			local initRoadCost = PathNode.GetNextTileCost(nextTile, (AIError.GetLastError() == AIError.ERR_ALREADY_BUILT), source, target, neighborID != node.directionID ? 10 : 0);
 			local bridgeEnd = GoToTile(nextTile, neighbor);
 			if (!BuildWrapper(AIRoad.BuildRoad, [nextTile, bridgeEnd], true))
 			{
@@ -436,9 +445,9 @@ function FindRoadPath(source, target, iterations, initDirection)
 							local bridgeCost = PathNode.GetNextTileCost(bridgeEnd, bridgeBuilt, source, target, 0);
 							if (!bridgeBuilt)
 							{
-								bridgeCost += length * 16 - 16;
+								bridgeCost += length * 20;
 							}
-							openNodes.ReplaceIfBetter(PathNode.CreateNode(node, bridgeEnd, initRoadCost + bridgeCost, neighborID, true, AIMap.DistanceManhattan(bridgeEnd, target) * 6));
+							openNodes.ReplaceIfBetter(PathNode.CreateNode(node, bridgeEnd, initRoadCost + bridgeCost, neighborID, true, GetRemainingRoadCost(bridgeEnd, target)));
 							break;
 						}
 					}
@@ -448,7 +457,7 @@ function FindRoadPath(source, target, iterations, initDirection)
 					}
 				}
 			}
-			openNodes.ReplaceIfBetter(PathNode.CreateNode(node, nextTile, initRoadCost, neighborID, false, AIMap.DistanceManhattan(nextTile, target) * 6));
+			openNodes.ReplaceIfBetter(PathNode.CreateNode(node, nextTile, initRoadCost, neighborID, false, GetRemainingRoadCost(nextTile, target)));
 		}
 	}
 	PrintWarning("Too little iterations; path not found");
@@ -467,7 +476,8 @@ function FindWaterPath(source, target, iterations)
 	}
 	local mapSize = AIMap.GetMapSizeX() * AIMap.GetMapSizeY();
 	local closedNodes = LargeArray(mapSize);
-	local openNodes = PathOpenList(mapSize, PathNode.CreateRoot(source, null, totalDistance));
+	local openNodes = PathOpenList();
+	openNodes.ReplaceIfBetter(PathNode.CreateRoot(source, null, totalDistance));
 	for (local i = 0; i < iterations; i++)
 	{
 		local node = openNodes.PopBest();
@@ -482,6 +492,11 @@ function FindWaterPath(source, target, iterations)
 			return node.ReconstructPath();
 		}
 		closedNodes.Set(node.index, node);
+		if (AIController.GetSetting("pathfinderSigns"))
+		{
+			BuildSign(node.index, "pop");
+			ClearSigns();
+		}
 		foreach (neighborID, neighbor in neighbors)
 		{
 			local nextTile = GoToTile(node.index, neighbor);
@@ -509,11 +524,19 @@ function FindRailPath(source, sourceOrientation, targets, targetOrientation, ite
 		{
 			return [targetPiece];
 		}
-		targetPieces.append(targetPiece);
+		local nextPieces = targetPiece.GetNextPieces(null);
+		foreach (nextPiece in nextPieces)
+		{
+			if (nextPiece.Build())
+			{
+				targetPieces.append(nextPiece);
+			}
+		}
 	}
 	local pieceCount = AIMap.GetMapSizeX() * AIMap.GetMapSizeY() * 6;
 	local closedNodes = LargeArray(pieceCount);
-	local openNodes = PathOpenList(pieceCount, PathNode.CreateRoot(sourcePiece.GetIndex(), null, GetRemainingRailCost(source, targets)));
+	local openNodes = PathOpenList();
+	openNodes.ReplaceIfBetter(PathNode.CreateRoot(sourcePiece.GetIndex(), null, GetRemainingRailCost(source, targetPieces)));
 	local maxBridgeLength = AIGameSettings.GetValue("construction.max_bridge_length");
 	local bridgeTable = {};
 	for (local length = 2; length <= maxBridgeLength; length++)
@@ -538,6 +561,11 @@ function FindRailPath(source, sourceOrientation, targets, targetOrientation, ite
 			}
 		}
 		closedNodes.Set(node.index, node);
+		if (AIController.GetSetting("pathfinderSigns"))
+		{
+			BuildSign(nodePiece.tile, "pop");
+			ClearSigns();
+		}
 		local motherTile = null;
 		local motherPiece = null;
 		if (node.mother != null)
@@ -565,7 +593,7 @@ function FindRailPath(source, sourceOrientation, targets, targetOrientation, ite
 			{
 				if (nextPiece.IsAlongAxis() != nodePiece.IsAlongAxis() && nodePiece.IsAlongAxis() != motherPiece.IsAlongAxis())
 				{
-					changesDirectionPunishment = 8;
+					changesDirectionPunishment = 20;
 				}
 				else
 				{
@@ -574,11 +602,11 @@ function FindRailPath(source, sourceOrientation, targets, targetOrientation, ite
 						local grandMotherPiece = RailPiece.CreateFromIndex(node.mother.mother.index);
 						if (grandMotherPiece.IsAlongAxis() != motherPiece.IsAlongAxis() && motherPiece.IsAlongAxis() != nextPiece.IsAlongAxis())
 						{
-							changesDirectionPunishment = 3;
+							changesDirectionPunishment = 15;
 						}
 						else if (grandMotherPiece.IsAlongAxis() != nodePiece.IsAlongAxis() && nodePiece.IsAlongAxis() != nextPiece.IsAlongAxis())
 						{
-							changesDirectionPunishment = 3;
+							changesDirectionPunishment = 15;
 						}
 						else
 						{
@@ -587,16 +615,20 @@ function FindRailPath(source, sourceOrientation, targets, targetOrientation, ite
 								local grandGrandMotherPiece = RailPiece.CreateFromIndex(node.mother.mother.mother.index);
 								if (grandGrandMotherPiece.IsAlongAxis() != grandMotherPiece.IsAlongAxis() && grandMotherPiece.IsAlongAxis() != nextPiece.IsAlongAxis())
 								{
-									changesDirectionPunishment = 1;
+									changesDirectionPunishment = 10;
 								}
 								else if (grandGrandMotherPiece.IsAlongAxis() != nodePiece.IsAlongAxis() && nodePiece.IsAlongAxis() != nextPiece.IsAlongAxis())
 								{
-									changesDirectionPunishment = 1;
+									changesDirectionPunishment = 10;
 								}
 							}
 						}
 					}
 				}
+			}
+			if (changesDirectionPunishment == 0 && nextPiece.IsAlongAxis() != nodePiece.IsAlongAxis())
+			{
+				changesDirectionPunishment = 1;
 			}
 			local initRailCost = PathNode.GetNextTileCost(nextPiece.tile, (AIError.GetLastError() == AIError.ERR_ALREADY_BUILT), source, targets[0], changesDirectionPunishment);
 			if (nextPiece.IsAlongAxis())
@@ -617,9 +649,9 @@ function FindRailPath(source, sourceOrientation, targets, targetOrientation, ite
 								local bridgeCost = PathNode.GetNextTileCost(bridgeEnd, bridgeBuilt, source, targets[0], 0);
 								if (!bridgeBuilt)
 								{
-									bridgeCost += length * 16 - 16;
+									bridgeCost += length * 20;
 								}
-								openNodes.ReplaceIfBetter(PathNode.CreateNode(node, RailPiece(bridgeEnd, nextPiece.orientation).GetIndex(), initRailCost + bridgeCost, null, true, GetRemainingRailCost(bridgeEnd, targets)));
+								openNodes.ReplaceIfBetter(PathNode.CreateNode(node, RailPiece(bridgeEnd, nextPiece.orientation).GetIndex(), initRailCost + bridgeCost, null, true, GetRemainingRailCost(bridgeEnd, targetPieces)));
 								break;
 							}
 						}
@@ -636,7 +668,7 @@ function FindRailPath(source, sourceOrientation, targets, targetOrientation, ite
 			}
 			if (nextPiece.Build())
 			{
-				openNodes.ReplaceIfBetter(PathNode.CreateNode(node, nextPiece.GetIndex(), initRailCost, null, false, GetRemainingRailCost(nextPiece.tile, targets)));
+				openNodes.ReplaceIfBetter(PathNode.CreateNode(node, nextPiece.GetIndex(), initRailCost, null, false, GetRemainingRailCost(nextPiece.tile, targetPieces)));
 			}
 		}
 	}

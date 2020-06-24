@@ -303,9 +303,7 @@ function AirTransportPlan::Realize()
 	BuyVehicles();
 	if (runningVehicles.len() > 0)
 	{
-		RenameStations();
-		ExtendRangeForTowns();
-		aiInstance.planIndex++;
+		FinalizeBuild();
 		return true;
 	}
 	else

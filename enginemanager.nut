@@ -162,7 +162,7 @@ function EngineManager::SetBestRoadEngines(cargo)
 		foreach (roadType, v in roadTypeList)
 		{
 			local engineList = GetRoadEngines(roadType, cargo);
-			if (engineList.Count() == 0)
+			if (engineList.IsEmpty())
 			{
 				continue;
 			}
@@ -181,7 +181,7 @@ function EngineManager::SetBestAirEngines(cargo)
 		foreach (planeType in planeTypeList)
 		{
 			local engineList = GetAirEngines(planeType, cargo);
-			if (engineList.Count() == 0)
+			if (engineList.IsEmpty())
 			{
 				continue;
 			}
@@ -197,7 +197,7 @@ function EngineManager::SetBestWaterEngines(cargo)
 	if (AIController.GetSetting("useShips") && !AIGameSettings.GetValue("ai.ai_disable_veh_ship"))
 	{
 		local engineList = GetWaterEngines(cargo);
-		if (engineList.Count() == 0)
+		if (engineList.IsEmpty())
 		{
 			return;
 		}
@@ -215,12 +215,12 @@ function EngineManager::SetBestRailEnginesAndWagons(cargo)
 		foreach (railType, v in railTypeList)
 		{
 			local engineList = GetRailEngines(railType);
-			if (engineList.Count() == 0)
+			if (engineList.IsEmpty())
 			{
 				continue;
 			}
 			local wagonList = GetWagons(railType, cargo);
-			if (wagonList.Count() == 0)
+			if (wagonList.IsEmpty())
 			{
 				continue;
 			}

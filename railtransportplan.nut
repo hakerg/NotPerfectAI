@@ -1,5 +1,5 @@
 require("transportplan.nut");
-require("../pathfinder.nut");
+require("pathfinder.nut");
 
 class RailTransportPlan extends TransportPlan
 {
@@ -626,9 +626,7 @@ function RailTransportPlan::Realize()
 	BuyVehicles();
 	if (runningVehicles.len() > 0)
 	{
-		RenameStations();
-		ExtendRangeForTowns();
-		aiInstance.planIndex++;
+		FinalizeBuild();
 		return true;
 	}
 	else

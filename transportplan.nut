@@ -1,8 +1,8 @@
-require("../enginemanager.nut");
-require("../utils.nut");
-require("../investment.nut");
-require("../industry.nut");
-require("../town.nut");
+require("enginemanager.nut");
+require("utils.nut");
+require("investment.nut");
+require("industry.nut");
+require("town.nut");
 
 class TransportPlan extends Investment
 {
@@ -14,6 +14,7 @@ class TransportPlan extends Investment
 	routeLength = null;
 	monthlySupply = null;
 	targetMonthlySupply = null;
+	productionValidTime = null;
 	
 	engine = null;
 	amount = null;
@@ -121,7 +122,7 @@ function TransportPlan::ChangeEngine(engine)
 	}
 	speed *= GetReliabilitySpeedFactor(engine);
 	deliveryTimeDays = routeLength / GetTilesPerDay(speed) + 10.0;
-	if (deliveryTimeDays > 182)
+	if (deliveryTimeDays > 123)
 	{
 		score = 0;
 		return;
@@ -182,7 +183,7 @@ function TransportPlan::SetName()
 	name = "AI" + aiInstance.aiIndexString + " - " + aiInstance.planIndex + " " + AICargo.GetCargoLabel(cargo);
 }
 
-function TransportPlan::RenameStations()
+function TransportPlan::FinalizeBuild()
 {
 	if (AIController.GetSetting("renameStations"))
 	{
@@ -210,6 +211,9 @@ function TransportPlan::RenameStations()
 			}
 		}
 	}
+	ExtendRangeForTowns();
+	productionValidTime = AIDate.GetCurrentDate() + 90;
+	aiInstance.planIndex++;
 }
 
 function TransportPlan::CheckDistance()
@@ -430,7 +434,7 @@ function TransportPlan::ExtendRange(stationType, roadVehicleType, stationLocatio
 	}
 	tilesToCover.RemoveList(removeList);
 	local radius = AIStation.GetCoverageRadius(stationType);
-	while (tilesToCover.Count() > 0)
+	while (!tilesToCover.IsEmpty())
 	{
 		local tileToCover = tilesToCover.Begin();
 		tilesToCover.RemoveItem(tileToCover);
