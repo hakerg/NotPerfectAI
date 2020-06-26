@@ -62,7 +62,7 @@ function SleepDays(days)
 	local timeout = AIDate.GetCurrentDate() + days;
 	while (AIDate.GetCurrentDate() < timeout)
 	{
-		AIController.Sleep(1);
+		AIController.Sleep(10);
 	}
 }
 
@@ -344,6 +344,7 @@ function BuildWrapper(buildFunction, params, waitForMoney, moneyInfo = true)
 							PrintInfo("Waiting for money");
 						}
 						aiInstance.ProcessEvents();
+						SleepDays(1);
 						return BuildWrapper(buildFunction, params, waitForMoney, false);
 					}
 				}
@@ -381,6 +382,7 @@ function VehicleBuildWrapper(buildFunction, params, waitForMoney, moneyInfo = tr
 							PrintInfo("Waiting for money");
 						}
 						aiInstance.ProcessEvents();
+						SleepDays(1);
 						return VehicleBuildWrapper(buildFunction, params, waitForMoney, false);
 					}
 				}
@@ -415,4 +417,38 @@ function RenameWrapper(renameFunction, params)
 		return "";
 	}
 	return null;
+}
+
+function GetSaveableObject(object)
+{
+	if ((typeof object) == "float")
+	{
+		return object.tointeger();
+	}
+	else if ((typeof object) == "instance")
+	{
+		return GetSaveableObject(object.GetTable());
+	}
+	else if ((typeof object) == "table")
+	{
+		local saveable = {};
+		foreach (index, value in object)
+		{
+			saveable[index] <- GetSaveableObject(value);
+		}
+		return saveable;
+	}
+	else if ((typeof object) == "array")
+	{
+		local saveable = [];
+		foreach (value in object)
+		{
+			saveable.append(GetSaveableObject(value));
+		}
+		return saveable;
+	}
+	else
+	{
+		return object;
+	}
 }

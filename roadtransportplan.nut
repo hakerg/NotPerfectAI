@@ -16,6 +16,10 @@ class RoadTransportPlan extends TransportPlan
 
 function RoadTransportPlan::constructor(source, target, cargo, engine, roadType)
 {
+	if (source == null)
+	{
+		return;
+	}
 	this.source = source;
 	this.target = target;
 	this.cargo = cargo;
@@ -306,11 +310,13 @@ function RoadTransportPlan::Realize()
 	PrintInfo("Building source station");
 	if (!BuildStop(sourceStationData[0], sourceStationData[1], false))
 	{
+		PrintWarning(AIError.GetLastErrorString());
 		return false;
 	}
 	PrintInfo("Building target station");
 	if (!BuildWrapper(AIRoad.BuildDriveThroughRoadStation, [targetStationData[0], GoToTile(targetStationData[0], targetStationData[1]), roadVehicleType, AIStation.STATION_NEW], true))
 	{
+		PrintWarning(AIError.GetLastErrorString());
 		return false;
 	}
 	if (!BuildPath())

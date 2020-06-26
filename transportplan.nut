@@ -14,7 +14,6 @@ class TransportPlan extends Investment
 	routeLength = null;
 	monthlySupply = null;
 	targetMonthlySupply = null;
-	productionValidTime = null;
 	
 	engine = null;
 	amount = null;
@@ -129,16 +128,17 @@ function TransportPlan::ChangeEngine(engine)
 	}
 	monthlyDeliveryPerUnit = aiInstance.engineManager.GetCapacity(engine, cargo) * 15.0 / deliveryTimeDays;
 	amount = (monthlySupply / monthlyDeliveryPerUnit).tointeger() + 1;
-	if (amount > routeLength)
+	local maxAmount = (routeLength / 2).tointeger();
+	if (amount > maxAmount)
 	{
-		amount = routeLength;
+		amount = maxAmount;
 	}
 	maxMonthlyDelivery = amount * monthlyDeliveryPerUnit;
 	CalculateDelivery();
 	monthlyIncome = AICargo.GetCargoIncome(cargo, distance, deliveryTimeDays.tointeger()) * monthlyDelivery;
 	monthlyIncome -= AIEngine.GetRunningCost(engine) * amount / 12.0 + monthlyMaintenanceCost;
 	cost = infrastructureCost + AIEngine.GetPrice(engine) * amount;
-	score = monthlyIncome / cost;
+	score = monthlyIncome * 1000 / cost;
 }
 
 function TransportPlan::Print()
@@ -185,6 +185,12 @@ function TransportPlan::SetName()
 
 function TransportPlan::FinalizeBuild()
 {
+	if (!(source.id in aiInstance.cargoLocksByID))
+	{
+		aiInstance.cargoLocksByID[source.id] <- [];
+	}
+	aiInstance.cargoLocksByID[source.id].append([cargo, AIDate.GetCurrentDate() + 90]);
+	aiInstance.planIndex++;
 	if (AIController.GetSetting("renameStations"))
 	{
 		PrintInfo("Renaming stations");
@@ -211,9 +217,7 @@ function TransportPlan::FinalizeBuild()
 			}
 		}
 	}
-	ExtendRangeForTowns();
-	productionValidTime = AIDate.GetCurrentDate() + 90;
-	aiInstance.planIndex++;
+	ExtendRangeForStations();
 }
 
 function TransportPlan::CheckDistance()
@@ -374,14 +378,6 @@ function TransportPlan::BuyVehicle(index)
 	{
 		RenameWrapper(AIVehicle.SetName, [vehicleID, name + ": " + (index + 1) + " / " + amount]);
 		runningVehicles.append(vehicleID);
-		if (runningVehicles.len() == 1)
-		{
-			if (!(source.id in aiInstance.servedPlansByID))
-			{
-				aiInstance.servedPlansByID[source.id] <- [];
-			}
-			aiInstance.servedPlansByID[source.id].append(this);
-		}
 		return true;
 	}
 }
@@ -462,7 +458,7 @@ function TransportPlan::ExtendRange(stationType, roadVehicleType, stationLocatio
 	}
 }
 
-function TransportPlan::ExtendRangeForTowns()
+function TransportPlan::ExtendRangeForStations()
 {
 	PrintInfo("Extending range for stations");
 	local stationType = null;

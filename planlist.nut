@@ -13,12 +13,12 @@ class PlanList
 
 function PlanList::AlreadyServed(source, cargo)
 {
-	if (source.id in aiInstance.servedPlansByID)
+	if (source.id in aiInstance.cargoLocksByID)
 	{
 		local date = AIDate.GetCurrentDate();
-		foreach (plan in aiInstance.servedPlansByID[source.id])
+		foreach (lock in aiInstance.cargoLocksByID[source.id])
 		{
-			if (plan.cargo == cargo && date < plan.productionValidTime)
+			if (cargo == lock[0] && date < lock[1])
 			{
 				return true;
 			}
@@ -88,7 +88,7 @@ function PlanList::IsFailedPlan(plan)
 function PlanList::IsValidSource(source, cargo)
 {
 	return source.GetLastMonthProduction(cargo) > 0
-		&& source.GetLastMonthTransportedPercentage(cargo) <= 30
+		&& source.GetLastMonthTransportedPercentage(cargo) <= 40
 		&& !PlanList.AlreadyServed(source, cargo)
 		&& source.GetAmountOfStationsAround() <= aiInstance.maxStationCount;
 }
@@ -158,7 +158,7 @@ function PlanList::SortByPriority()
 	this.planList = AIList();
 	foreach (index, plan in planArray)
 	{
-		this.planList.AddItem(index, (plan.score * 1000000).tointeger());
+		this.planList.AddItem(index, plan.score.tointeger());
 	}
 }
 
@@ -168,8 +168,8 @@ function PlanList::constructor(iterations)
 	this.planArray = [];
 	local cargoList = AICargoList();
 	local iterationsPerCargo = iterations / cargoList.Count() + 1;
-	PrintInfo("Creating plan list, iterations per cargo: " + iterationsPerCargo + ", max source stations: " + aiInstance.maxStationCount);
 	engineManager.ValidateBestEngines();
+	PrintInfo("Creating plan list, iterations per cargo: " + iterationsPerCargo + ", max source stations: " + aiInstance.maxStationCount);
 	local townList = AITownList();
 	townList.Valuate(AITown.GetPopulation);
 	foreach (cargo, income in cargoList)

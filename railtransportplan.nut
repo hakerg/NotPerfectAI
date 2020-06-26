@@ -7,7 +7,6 @@ class RailTransportPlan extends TransportPlan
 	wagon = null;
 	wagonAmount = null;
 	maxWagonsPerTrain = null;
-	cargoMass = null;
 	maxStationLength = null;
 	
 	availableWagons = null;
@@ -90,9 +89,10 @@ function RailTransportPlan::ChangeEngineAndWagon(engine, wagon)
 		score = 0;
 		return;
 	}
-	if (wagonAmount > routeLength)
+	local maxWagonAmount = (routeLength / 2).tointeger();
+	if (wagonAmount > maxWagonAmount)
 	{
-		wagonAmount = routeLength;
+		wagonAmount = maxWagonAmount;
 	}
 	
 	/*amount = wagonAmount / maxWagonsPerTrain;
@@ -124,11 +124,15 @@ function RailTransportPlan::ChangeEngineAndWagon(engine, wagon)
 	monthlyIncome = AICargo.GetCargoIncome(cargo, distance, deliveryTimeDays.tointeger()) * monthlyDelivery;
 	monthlyIncome -= monthlyMaintenanceCost + (amount * AIEngine.GetRunningCost(engine) + wagonAmount * AIEngine.GetRunningCost(wagon)) / 12.0;
 	cost = infrastructureCost + (AIRail.GetBuildCost(railType, AIRail.BT_STATION) + aiInstance.clearCost) * maxStationLength * 2 + AIEngine.GetPrice(engine) * amount + AIEngine.GetPrice(wagon) * wagonAmount;
-	score = monthlyIncome / cost;
+	score = monthlyIncome * 1000 / cost;
 }
 
 function RailTransportPlan::constructor(source, target, cargo, engine, wagon, railType)
 {
+	if (source == null)
+	{
+		return;
+	}
 	this.source = source;
 	this.target = target;
 	this.cargo = cargo;
@@ -398,14 +402,6 @@ function RailTransportPlan::BuyVehicle(index)
 	else
 	{
 		runningVehicles.append(vehicleID);
-		if (runningVehicles.len() == 1)
-		{
-			if (!(source.id in aiInstance.servedPlansByID))
-			{
-				aiInstance.servedPlansByID[source.id] <- [];
-			}
-			aiInstance.servedPlansByID[source.id].append(this);
-		}
 		return true;
 	}
 }
@@ -435,14 +431,14 @@ function RailTransportPlan::BuildTrack(fromTile, fromOrientation, toTiles, toOri
 		}
 		if (length == 1)
 		{
-			if (AIRail.IsRailStationTile(path[i].tile))
+			if (path[i].IsStationAlong())
 			{
 				buildResult = true;
 				indexBefore = i;
 			}
 			else
 			{
-				if (i == path.len() - 1 || !path[i].IsInLine(path[i + 1]) || AIMap.DistanceManhattan(path[i].tile, path[i + 1].tile) > 1 || AIRail.IsRailStationTile(path[i + 1].tile))
+				if (i == path.len() - 1 || !path[i].IsInLine(path[i + 1]) || AIMap.DistanceManhattan(path[i].tile, path[i + 1].tile) > 1 || path[i + 1].IsStationAlong())
 				{
 					buildResult = BuildWrapper(AIRail.BuildRail, [path[indexBefore].tile, path[indexBefore + 1].tile, path[i].GetNextPieces(path[i - 1].tile)[0].tile], true);
 					indexBefore = i;
@@ -576,11 +572,13 @@ function RailTransportPlan::Realize()
 	PrintInfo("Building source station");
 	if (!BuildWrapper(AIRail.BuildNewGRFRailStation, [sourceStationData[0], sourceStationData[1], sourceStationData[2], sourceStationData[3], AIStation.STATION_NEW, cargo, sourceIndustry, targetIndustry, distance, true], true))
 	{
+		PrintWarning(AIError.GetLastErrorString());
 		return false;
 	}
 	PrintInfo("Building target station");
 	if (!BuildWrapper(AIRail.BuildNewGRFRailStation, [targetStationData[0], targetStationData[1], targetStationData[2], targetStationData[3], AIStation.STATION_NEW, cargo, sourceIndustry, targetIndustry, distance, false], true))
 	{
+		PrintWarning(AIError.GetLastErrorString());
 		return false;
 	}
 	if (!BuildPath())

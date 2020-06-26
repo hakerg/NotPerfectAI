@@ -25,7 +25,8 @@ class RailTrackData
 		[AIRail.RAILTRACK_NW_SW] = 4,
 		[AIRail.RAILTRACK_NE_SE] = 5
 	};
-	// normal
+
+	// FIFO - queue
 	/*trackArray =
 	[
 		[
@@ -53,7 +54,8 @@ class RailTrackData
 			[[0, 1], [AIRail.RAILTRACK_NW_SW, AIRail.RAILTRACK_NW_SE]]
 		]
 	];*/
-	// reversed
+
+	// FILO - stack
 	trackArray =
 	[
 		[
@@ -144,18 +146,24 @@ function RailPiece::IsInLine(nextPiece)
 	return railTrackData.linedTrackArray[railTrackData.trackIndexTable[orientation]] == nextPiece.orientation;
 }
 
+function RailPiece::IsStationAlong()
+{
+	return AIRail.IsRailStationTile(tile) && AIRail.GetRailType(tile) == AIRail.GetCurrentRailType() && AICompany.IsMine(AITile.GetOwner(tile)) && AIRail.GetRailStationDirection(tile) == orientation;
+}
+
 function RailPiece::Build()
 {
-	if (AIRail.IsRailStationTile(tile) && AIRail.GetRailType(tile) == AIRail.GetCurrentRailType() && AICompany.IsMine(AITile.GetOwner(tile)) && AIRail.GetRailStationDirection(tile) == orientation)
-	{
-		return true;
-	}
-	return BuildWrapper(AIRail.BuildRailTrack, [tile, orientation], true);
+	return (IsStationAlong() || BuildWrapper(AIRail.BuildRailTrack, [tile, orientation], true)) && !AIRoad.IsRoadTile(tile);
 }
 
 function RailPiece::IsAlongAxis()
 {
 	return orientation == AIRail.RAILTRACK_NE_SW || orientation == AIRail.RAILTRACK_NW_SE;
+}
+
+function RailPiece::CrossesRail()
+{
+	return AIRail.GetRailTracks(tile) != 0 && (AIRail.GetRailTracks(tile) & orientation) == 0;
 }
 
 class PathNode
@@ -315,13 +323,13 @@ function PathNode::FindFastestBridge(length)
 function PathNode::GetTerrainCost(tile)
 {
 	local newCost = null;
-	if (AITile.IsCoastTile(tile))
-	{
-		newCost = 30;
-	}
-	else if (AITile.IsFarmTile(tile))
+	if (AITile.IsFarmTile(tile))
 	{
 		newCost = 20;
+	}
+	else if (AITile.IsCoastTile(tile))
+	{
+		newCost = 15;
 	}
 	else if (AITile.IsRockTile(tile) || AITile.IsRoughTile(tile))
 	{
@@ -391,7 +399,7 @@ function FindRoadPath(source, target, iterations, initDirection)
 	openNodes.ReplaceIfBetter(PathNode.CreateRoot(source, GetDirectionID(initDirection), GetRemainingRoadCost(source, target)));
 	local maxBridgeLength = AIGameSettings.GetValue("construction.max_bridge_length");
 	local bridgeTable = {};
-	for (local length = 2; length <= maxBridgeLength; length++)
+	for (local length = 1; length <= maxBridgeLength; length++)
 	{
 		bridgeTable[length] <- PathNode.FindFastestBridge(length);
 	}
@@ -425,13 +433,17 @@ function FindRoadPath(source, target, iterations, initDirection)
 		foreach (neighborID, neighbor in directionsToCheck)
 		{
 			local nextTile = GoToTile(node.index, neighbor);
-			if (!AIMap.IsValidTile(nextTile) || closedNodes.Get(nextTile) != null || !BuildWrapper(AIRoad.BuildRoad, [node.index, nextTile], true))
+			if (!AIMap.IsValidTile(nextTile) || closedNodes.Get(nextTile) != null || !BuildWrapper(AIRoad.BuildRoad, [node.index, nextTile], true) || AIRail.IsRailTile(nextTile))
 			{
 				continue;
 			}
+			//                       initRoadCost
+			//         node.index    nextTile                     bridgeEnd     afterBridge
+			// ROAD -> ROAD       -> BRIDGE START -> BRIDGE    -> BRIDGE END -> ROAD        -> ROAD
+			//                                       obstackle
 			local initRoadCost = PathNode.GetNextTileCost(nextTile, (AIError.GetLastError() == AIError.ERR_ALREADY_BUILT), source, target, neighborID != node.directionID ? 10 : 0);
 			local bridgeEnd = GoToTile(nextTile, neighbor);
-			if (!BuildWrapper(AIRoad.BuildRoad, [nextTile, bridgeEnd], true))
+			if (!BuildWrapper(AIBridge.BuildBridge, [AIVehicle.VT_ROAD, bridgeTable[1], nextTile, bridgeEnd], true))
 			{
 				for (local length = 2; length <= maxBridgeLength; length++)
 				{
@@ -439,12 +451,13 @@ function FindRoadPath(source, target, iterations, initDirection)
 					if (BuildWrapper(AIBridge.BuildBridge, [AIVehicle.VT_ROAD, bridgeTable[length], nextTile, bridgeEnd], false))
 					{
 						local bridgeBuilt = (AIError.GetLastError() == AIError.ERR_ALREADY_BUILT);
-						if (BuildWrapper(AIRoad.BuildRoad, [bridgeEnd, GoToTile(bridgeEnd, neighbor)], true))
+						local afterBridge = GoToTile(bridgeEnd, neighbor);
+						if (BuildWrapper(AIRoad.BuildRoad, [bridgeEnd, afterBridge], true) && !AIRail.IsRailTile(afterBridge))
 						{
 							local bridgeCost = PathNode.GetNextTileCost(bridgeEnd, bridgeBuilt, source, target, 0);
 							if (!bridgeBuilt)
 							{
-								bridgeCost += length * 20;
+								bridgeCost += (length + 1) * 25;
 							}
 							openNodes.ReplaceIfBetter(PathNode.CreateNode(node, bridgeEnd, initRoadCost + bridgeCost, neighborID, true, GetRemainingRoadCost(bridgeEnd, target)));
 							break;
@@ -534,7 +547,7 @@ function FindRailPath(source, sourceOrientation, targets, targetOrientation, ite
 	openNodes.ReplaceIfBetter(PathNode.CreateRoot(sourcePiece.GetIndex(), null, GetRemainingRailCost(source, targetPieces)));
 	local maxBridgeLength = AIGameSettings.GetValue("construction.max_bridge_length");
 	local bridgeTable = {};
-	for (local length = 2; length <= maxBridgeLength; length++)
+	for (local length = 1; length <= maxBridgeLength; length++)
 	{
 		bridgeTable[length] <- PathNode.FindFastestBridge(length);
 	}
@@ -579,7 +592,7 @@ function FindRailPath(source, sourceOrientation, targets, targetOrientation, ite
 			{
 				continue;
 			}
-			if (AIRail.GetRailTracks(nextPiece.tile) != 0 && (AIRail.GetRailTracks(nextPiece.tile) & nextPiece.orientation) == 0)
+			if (nextPiece.CrossesRail())
 			{
 				continue;
 			}
@@ -623,14 +636,27 @@ function FindRailPath(source, sourceOrientation, targets, targetOrientation, ite
 			}
 			if (changesDirectionPunishment == 0 && nextPiece.IsAlongAxis() != nodePiece.IsAlongAxis())
 			{
-				changesDirectionPunishment = 1;
+				changesDirectionPunishment = 5;
 			}
-			local initRailCost = PathNode.GetNextTileCost(nextPiece.tile, (AIError.GetLastError() == AIError.ERR_ALREADY_BUILT), source, targets[0], changesDirectionPunishment);
+			local canBeBuilt = nextPiece.Build();
+			local alreadyBuilt = false;
+			if (canBeBuilt)
+			{
+				if (AIError.GetLastError() == AIError.ERR_ALREADY_BUILT)
+				{
+					alreadyBuilt = true;
+				}
+			}
+			//                           initRailCost
+			//         nodePiece.tile    nextPiece.tile               bridgeEnd
+			// RAIL -> RAIL           -> BRIDGE START -> BRIDGE    -> BRIDGE END -> RAIL
+			//                                           obstackle
+			local initRailCost = PathNode.GetNextTileCost(nextPiece.tile, alreadyBuilt, source, targets[0], changesDirectionPunishment);
 			if (nextPiece.IsAlongAxis())
 			{
 				local neighbor = GetDirection(nodePiece.tile, nextPiece.tile);
 				local bridgeEnd = GoToTile(nextPiece.tile, neighbor);
-				if (!BuildWrapper(AIRail.BuildRailTrack, [bridgeEnd, nextPiece.orientation], true) || (AIRail.GetRailTracks(bridgeEnd) != 0 && (AIRail.GetRailTracks(bridgeEnd) & nextPiece.orientation) == 0))
+				if (!BuildWrapper(AIBridge.BuildBridge, [AIVehicle.VT_RAIL, bridgeTable[1], nextPiece.tile, bridgeEnd], true))
 				{
 					for (local length = 2; length <= maxBridgeLength; length++)
 					{
@@ -643,7 +669,7 @@ function FindRailPath(source, sourceOrientation, targets, targetOrientation, ite
 								local bridgeCost = PathNode.GetNextTileCost(bridgeEnd, bridgeBuilt, source, targets[0], 0);
 								if (!bridgeBuilt)
 								{
-									bridgeCost += length * 20;
+									bridgeCost += (length + 1) * 25;
 								}
 								openNodes.ReplaceIfBetter(PathNode.CreateNode(node, RailPiece(bridgeEnd, nextPiece.orientation).GetIndex(), initRailCost + bridgeCost, null, true, GetRemainingRailCost(bridgeEnd, targetPieces)));
 								break;
@@ -654,9 +680,13 @@ function FindRailPath(source, sourceOrientation, targets, targetOrientation, ite
 			}
 			else
 			{
-				initRailCost--;
+				initRailCost -= 3;
+				if (initRailCost < 1)
+				{
+					initRailCost = 1;
+				}
 			}
-			if (nextPiece.Build())
+			if (canBeBuilt)
 			{
 				openNodes.ReplaceIfBetter(PathNode.CreateNode(node, nextPiece.GetIndex(), initRailCost, null, false, GetRemainingRailCost(nextPiece.tile, targetPieces)));
 			}

@@ -10,6 +10,10 @@ class WaterTransportPlan extends TransportPlan
 
 function WaterTransportPlan::constructor(source, target, cargo, engine)
 {
+	if (source == null)
+	{
+		return;
+	}
 	this.source = source;
 	this.target = target;
 	this.cargo = cargo;
@@ -201,6 +205,7 @@ function WaterTransportPlan::Realize()
 		PrintInfo("Building source dock");
 		if (!BuildWrapper(AIMarine.BuildDock, [sourceStationLocation, AIStation.STATION_NEW], true))
 		{
+			PrintWarning(AIError.GetLastErrorString());
 			return false;
 		}
 	}
@@ -209,6 +214,7 @@ function WaterTransportPlan::Realize()
 		PrintInfo("Building target dock");
 		if (!BuildWrapper(AIMarine.BuildDock, [targetStationLocation, AIStation.STATION_NEW], true))
 		{
+			PrintWarning(AIError.GetLastErrorString());
 			return false;
 		}
 	}

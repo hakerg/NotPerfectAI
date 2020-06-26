@@ -4,7 +4,7 @@ aiInstance <- null;
 
 class NotPerfectAI extends AIController 
 {
-	servedPlansByID = {};
+	cargoLocksByID = {};
 	failedPlansByID = {};
 	aiIndexString = null;
 	loaded = false;
@@ -13,24 +13,6 @@ class NotPerfectAI extends AIController
 	planIndex = 1;
 	maxStationCount = 0;
 	planList = null;
-}
-
-function NotPerfectAI::FindVehiclePlanIndex(vehicleID)
-{
-	foreach (s, servedPlans in servedPlansByID)
-	{
-		for (local i = 0; i < servedPlans.len(); i++)
-		{
-			for (local v = 0; v < servedPlans[i].runningVehicles.len(); v++)
-			{
-				if (servedPlans[i].runningVehicles[v] == vehicleID)
-				{
-					return [s, i, v];
-				}
-			}
-		}
-	}
-	return null;
 }
 
 function NotPerfectAI::ProcessEvents()
@@ -59,12 +41,6 @@ function NotPerfectAI::ProcessEvents()
 			{
 				event = AIEventVehicleWaitingInDepot.Convert(event);
 				PrintWarning("Selling " + AIVehicle.GetName(event.GetVehicleID()));
-				local index = FindVehiclePlanIndex(event.GetVehicleID());
-				servedPlansByID[index[0]][index[1]].runningVehicles.remove(index[2]);
-				if (servedPlansByID[index[0]][index[1]].runningVehicles.len() == 0)
-				{
-					servedPlansByID[index[0]].remove(index[1]);
-				}
 				AIVehicle.SellVehicle(event.GetVehicleID());
 				break;
 			}
@@ -99,41 +75,9 @@ function NotPerfectAI::ProcessEvents()
 						PrintError(AIVehicle.GetName(event.GetVehicleID()) + " could not resist the tsunami wave.");
 						break;
 				}
-				local index = FindVehiclePlanIndex(event.GetVehicleID());
-				servedPlansByID[index[0]][index[1]].runningVehicles.remove(index[2]);
-				if (servedPlansByID[index[0]][index[1]].BuyVehicle(index[2]))
-				{
-					PrintInfo("Replacement succeed");
-				}
-				else
-				{
-					PrintWarning("Replacement failed");
-					if (servedPlansByID[index[0]][index[1]].runningVehicles.len() == 0)
-					{
-						servedPlansByID[index[0]].remove(index[1]);
-					}
-				}
-				break;
-			}
-			case AIEvent.ET_VEHICLE_LOST:
-			{
-				event = AIEventVehicleLost.Convert(event);
-				PrintWarning(AIVehicle.GetName(event.GetVehicleID()) + " lost, trying to fix this");
-				local index = FindVehiclePlanIndex(event.GetVehicleID());
-				if (!servedPlansByID[index[0]][index[1]].BuildPath())
-				{
-					PrintWarning("Sending the vehicle to depot");
-					AIVehicle.SendVehicleToDepot(event.GetVehicleID());
-				}
-				else
-				{
-					PrintInfo("Path is fine");
-				}
-				break;
 			}
 		}
 	}
-	AIController.Sleep(1);
 }
 
 function NotPerfectAI::BuildHQ()
@@ -143,30 +87,7 @@ function NotPerfectAI::BuildHQ()
 	foreach (townID, v in townList)
 	{
 		local location = AITown.GetLocation(townID);
-		local tileList = AITileList();
-		local x1 = AIMap.GetTileX(location) - 16;
-		if (x1 < 1)
-		{
-			x1 = 1;
-		}
-		local y1 = AIMap.GetTileY(location) - 16;
-		if (y1 < 1)
-		{
-			y1 = 1;
-		}
-		local x2 = AIMap.GetTileX(location) + 16;
-		if (x2 > AIMap.GetMapSizeX() - 2)
-		{
-			x2 = AIMap.GetMapSizeX() - 2;
-		}
-		local y2 = AIMap.GetTileY(location) + 16;
-		if (y2 > AIMap.GetMapSizeY() - 2)
-		{
-			y2 = AIMap.GetMapSizeY() - 2;
-		}
-		tileList.AddRectangle(AIMap.GetTileIndex(x1, y1), AIMap.GetTileIndex(x2, y2));
-		tileList.Valuate(AITile.IsWithinTownInfluence, townID);
-		tileList.KeepValue(1);
+		local tileList = Town(townID).GetAuthorityTiles();
 		tileList.Valuate(AITile.GetDistanceManhattanToTile, location);
 		tileList.Sort(AIList.SORT_BY_VALUE, true);
 		foreach (tile, v in tileList)
@@ -202,6 +123,23 @@ function NotPerfectAI::PayLoan()
 	}
 }
 
+function NotPerfectAI::RemoveOutdatedCargoLocks()
+{
+	local date = AIDate.GetCurrentDate();
+	foreach (sourceID, locks in cargoLocksByID)
+	{
+		local newLocks = [];
+		foreach (lock in locks)
+		{
+			if (date < lock[1])
+			{
+				newLocks.append(lock);
+			}
+		}
+		cargoLocksByID[sourceID] = newLocks;
+	}
+}
+
 function NotPerfectAI::Start()
 {
 	PrintInfo("");
@@ -231,6 +169,7 @@ function NotPerfectAI::Start()
 		PrintInfo("");
 		PayLoan();
 		ProcessEvents();
+		RemoveOutdatedCargoLocks();
 		if (planList == null || AIDate.GetCurrentDate() > planList.expires)
 		{
 			planList = PlanList(1024);
@@ -275,12 +214,14 @@ function NotPerfectAI::Start()
 				maxStationCount++;
 			}
 		}
+		SleepDays(1);
 	}
 }
 
 function NotPerfectAI::Save()
 {
 	local table = {};
+	table["cargoLocksByID"] <- cargoLocksByID;
 	table["aiIndexString"] <- aiIndexString;
 	table["engineManager.rememberedCapacities"] <- engineManager.rememberedCapacities;
 	table["engineManager.rememberedLengths"] <- engineManager.rememberedLengths;
@@ -292,6 +233,7 @@ function NotPerfectAI::Save()
 
 function NotPerfectAI::Load(version, table)
 {
+	cargoLocksByID = table["cargoLocksByID"];
 	aiIndexString = table["aiIndexString"];
 	engineManager.rememberedCapacities = table["engineManager.rememberedCapacities"];
 	engineManager.rememberedLengths = table["engineManager.rememberedLengths"];

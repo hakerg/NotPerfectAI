@@ -37,6 +37,10 @@ function AirTransportPlan::GetAirportType(industry, list)
 
 function AirTransportPlan::constructor(source, target, cargo, engine)
 {
+	if (source == null)
+	{
+		return;
+	}
 	this.source = source;
 	this.target = target;
 	this.cargo = cargo;
@@ -279,6 +283,7 @@ function AirTransportPlan::Realize()
 		PrintInfo("Building source airport");
 		if (!BuildWrapper(AIAirport.BuildAirport, [sourceStationLocation, sourceAirportType, AIStation.STATION_NEW], true))
 		{
+			PrintWarning(AIError.GetLastErrorString());
 			return false;
 		}
 	}
@@ -287,6 +292,7 @@ function AirTransportPlan::Realize()
 		PrintInfo("Building target airport");
 		if (!BuildWrapper(AIAirport.BuildAirport, [targetStationLocation, targetAirportType, AIStation.STATION_NEW], true))
 		{
+			PrintWarning(AIError.GetLastErrorString());
 			return false;
 		}
 	}
