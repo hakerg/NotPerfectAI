@@ -420,7 +420,7 @@ function FindRoadPath(source, target, iterations, initDirection)
 		closedNodes.Set(node.index, node);
 		if (AIController.GetSetting("pathfinderSigns"))
 		{
-			BuildSign(node.index, "pop");
+			BuildSign(node.index, i + " / " + iterations);
 			ClearSigns();
 		}
 		local directionsToCheck = neighbors;

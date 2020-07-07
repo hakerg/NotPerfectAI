@@ -295,6 +295,7 @@ function PlanList::PopBest()
 {
 	if (planList.IsEmpty())
 	{
+		PrintWarning("Plan list is empty");
 		return null;
 	}
 	local availableMoney = GetAvailableMoney();

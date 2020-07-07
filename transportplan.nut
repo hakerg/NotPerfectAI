@@ -121,7 +121,7 @@ function TransportPlan::ChangeEngine(engine)
 	}
 	speed *= GetReliabilitySpeedFactor(engine);
 	deliveryTimeDays = routeLength / GetTilesPerDay(speed) + 10.0;
-	if (deliveryTimeDays > 123)
+	if (deliveryTimeDays > 182)
 	{
 		score = 0;
 		return;

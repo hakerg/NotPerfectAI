@@ -172,7 +172,7 @@ function NotPerfectAI::Start()
 		RemoveOutdatedCargoLocks();
 		if (planList == null || AIDate.GetCurrentDate() > planList.expires)
 		{
-			planList = PlanList(1024);
+			planList = PlanList(4096);
 		}
 		local plan = planList.PopBest();
 		if (plan != null)

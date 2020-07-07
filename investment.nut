@@ -7,5 +7,5 @@ class Investment
 
 function Investment::GetReimbursementMonths()
 {
-	return (1000.0 / score).tointeger();
+	return (cost / monthlyIncome).tointeger();
 }
