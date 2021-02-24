@@ -408,7 +408,7 @@ function RailTransportPlan::BuyVehicle(index)
 
 function RailTransportPlan::BuildTrack(fromTile, fromOrientation, toTiles, toOrientation)
 {
-	path = FindRailPath(fromTile, fromOrientation, toTiles, toOrientation, 32768, null);
+	path = FindRailPath(fromTile, fromOrientation, toTiles, toOrientation, 16384, null);
 	if (path == null)
 	{
 		return false;
@@ -466,7 +466,7 @@ function RailTransportPlan::BuildTrack(fromTile, fromOrientation, toTiles, toOri
 				retries++;
 				PrintInfo("Building failed from " + TileToString(path[i - 1].tile) + " to " + TileToString(path[i].tile) + ", finding new path");
 				PrintInfo("Retries: " + retries + " / 8");
-				path = FindRailPath(fromTile, fromOrientation, toTiles, toOrientation, 32768, null);
+				path = FindRailPath(fromTile, fromOrientation, toTiles, toOrientation, 16384, null);
 				if (path == null)
 				{
 					return false;

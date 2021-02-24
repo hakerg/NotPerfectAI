@@ -380,7 +380,7 @@ function GetRemainingRailCost(tile, targetPieces)
 			distance = newDistance;
 		}
 	}
-	return (distance * 20).tointeger();
+	return (distance * 24).tointeger();
 }
 
 function FindRoadPath(source, target, iterations, initDirection)

@@ -42,7 +42,7 @@ function Town::HasDock()
 
 function Town::GetAuthorityTiles()
 {
-	local tileList = GetCoveredTiles(type.GetLocation(id), 1, 1, 32);
+	local tileList = GetCoveredTiles(type.GetLocation(id), 1, 1, 64);
 	tileList.Valuate(AITile.GetTownAuthority);
 	tileList.KeepValue(id);
 	return tileList;

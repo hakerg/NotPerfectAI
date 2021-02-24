@@ -140,6 +140,133 @@ function NotPerfectAI::RemoveOutdatedCargoLocks()
 	}
 }
 
+class RailDemolisher
+{
+	prevTile = null;
+	tile = null;
+	nextTile = null;
+	isFilled = null;
+};
+
+function RailDemolisher::constructor()
+{
+	this.isFilled = false;
+}
+
+function RailDemolisher::Flush()
+{
+	if (isFilled)
+	{
+		this.isFilled = false;
+		BuildWrapper(AIRail.RemoveRail, [prevTile, tile, nextTile], false);
+	}
+}
+
+function RailDemolisher::RemoveRail(prevTile, tile, nextTile)
+{
+	if (!isFilled)
+	{
+		this.prevTile = prevTile;
+		this.tile = tile;
+		this.nextTile = nextTile;
+		this.isFilled = true;
+	}
+	else
+	{
+		local testMode = AITestMode();
+		if (BuildWrapper(AIRail.RemoveRail, [this.prevTile, this.tile, nextTile], false))
+		{
+			this.nextTile = nextTile;
+		}
+		else
+		{
+			local execMode = AIExecMode();
+			Flush();
+			RemoveRail(prevTile, tile, nextTile);
+		}
+	}
+}
+
+railDemolisher <- RailDemolisher();
+
+function NotPerfectAI::RemoveRailRecursively(tile, prevTile)
+{
+	if (AIRail.IsRailDepotTile(tile))
+	{
+		railDemolisher.Flush();
+		AITile.DemolishTile(tile);
+		return;
+	}
+	if (AIBridge.IsBridgeTile(tile))
+	{
+		railDemolisher.Flush();
+		local bridgeEnd = AIBridge.GetOtherBridgeEnd(tile);
+		local afterBridge = GoToTile(bridgeEnd, GetDirection(tile, bridgeEnd));
+		RemoveRailRecursively(afterBridge, bridgeEnd);
+		return;
+	}
+	if (AIRail.IsRailStationTile(tile))
+	{
+		railDemolisher.Flush();
+		RemoveRailRecursively(tile + tile - prevTile, tile);
+		return;
+	}
+	local toCheck = [];
+	foreach (neighbor in neighbors)
+	{
+		local nextTile = GoToTile(tile, neighbor);
+		if (prevTile == nextTile) continue;
+		if (AIRail.AreTilesConnected(prevTile, tile, nextTile))
+		{
+			railDemolisher.RemoveRail(prevTile, tile, nextTile);
+			toCheck.append(nextTile);
+		}
+	}
+	foreach (nextTile in toCheck)
+	{
+		RemoveRailRecursively(nextTile, tile);
+	}
+}
+
+function NotPerfectAI::SellStation(stationID, stationType)
+{
+	PrintWarning("Destroying unused station: " + AIBaseStation.GetName(stationID));
+	local location = AIBaseStation.GetLocation(stationID);
+	if (stationType == AIStation.STATION_TRAIN)
+	{
+		if (AIRail.GetRailStationDirection(location) == AIRail.RAILTRACK_NE_SW)
+		{
+			RemoveRailRecursively(GoToTile(location, railTrackData.ne), location);
+			RemoveRailRecursively(GoToTile(location, railTrackData.sw), location);
+		}
+		else
+		{
+			RemoveRailRecursively(GoToTile(location, railTrackData.nw), location);
+			RemoveRailRecursively(GoToTile(location, railTrackData.se), location);
+		}
+	}
+	railDemolisher.Flush();
+	AITile.DemolishTile(location);
+}
+
+function NotPerfectAI::SellUnusedInfrastructure()
+{
+	PrintInfo("Looking for unused infrastructure");
+	local stationTypeList = [AIStation.STATION_TRAIN, AIStation.STATION_AIRPORT];
+	foreach (stationType in stationTypeList)
+	{
+		local stationList = AIStationList(stationType);
+		foreach (stationID, v in stationList)
+		{
+			local vehicleList = AIVehicleList_Station(stationID);
+			if (vehicleList.IsEmpty())
+			{
+				SellStation(stationID, stationType);
+			}
+		}
+	}
+}
+
 function NotPerfectAI::Start()
 {
 	PrintInfo("");
@@ -167,6 +294,7 @@ function NotPerfectAI::Start()
 		PrintInfo("");
 		PrintInfo("========== ========== ========== ==========");
 		PrintInfo("");
+		SellUnusedInfrastructure();
 		PayLoan();
 		ProcessEvents();
 		RemoveOutdatedCargoLocks();

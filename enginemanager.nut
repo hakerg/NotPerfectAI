@@ -58,7 +58,7 @@ function EngineManager::GetLength(engineID)
 function EngineManager::RoadEngineScore(engine, cargo, roadType)
 {
 	local speed = AIEngine.GetMaxSpeed(engine);
-	local maxSpeed = AIRoad.GetMaxSpeed(roadType) * 2;
+	local maxSpeed = AIRoad.GetMaxSpeed(roadType) / 2;
 	if (maxSpeed > 0 && speed > maxSpeed)
 	{
 		speed = maxSpeed;

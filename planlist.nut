@@ -325,7 +325,7 @@ function PlanList::PopBest()
 		{
 			minScore = plan.score * 0.5;
 		}
-		if (plan.cost >= availableMoney || (!hasIncome && plan.deliveryTimeDays > 60))
+		if (plan.cost >= availableMoney || (!hasIncome && plan.deliveryTimeDays > 75))
 		{
 			item = planList.Next();
 		}
